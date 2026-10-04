@@ -74,6 +74,32 @@ the code for a complete set.
     cast.ToInt(eight)              // 8
     cast.ToInt(nil)                // 0
 
+### Example ‘ConvertMapE’:
+
+`ConvertMapE` converts an explicit, ordered list of key/value pairs into a
+map. All keys are converted first (each exactly once) and checked for
+collisions using the target type's own equality — so `"01"` and `"1"` collide
+when keys are converted to `int`, but not when they are converted to `string`.
+If any key fails to convert (illegal type, overflow, ...) or collides, every
+problem is reported together with its original key position and no values are
+converted. The input list is never modified. A source table tracing each result
+key back to its origin is returned in input order.
+
+    entries := []cast.Entry[any, any]{
+        {Key: "1", Value: "one"},
+        {Key: "2", Value: "two"},
+    }
+
+    m, sources, err := cast.ConvertMapE(entries, cast.ToIntE, cast.ToStringE)
+    // m       = map[int]string{1: "one", 2: "two"}
+    // sources = [{1 "1"}, {2 "2"}]
+
+Run the targeted tests:
+
+```shell
+go test -run 'TestConvertMapE|ExampleConvertMapE' -v .
+```
+
 ## Development
 
 The project uses [just](https://just.systems/) to run development tasks.
