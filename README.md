@@ -74,6 +74,44 @@ the code for a complete set.
     cast.ToInt(eight)              // 8
     cast.ToInt(nil)                // 0
 
+### Explicit Duration Conversion with Units
+
+`ToDurationInUnitE` converts a numeric value to a `time.Duration` while
+declaring the input unit explicitly. Unlike `ToDurationE`, which guesses the
+unit from the input (e.g. `"5ms"`), `ToDurationInUnitE` treats the input as a
+multiple of the declared unit:
+
+    cast.ToDurationInUnit(0.5, time.Millisecond) // 500000
+    cast.ToDurationInUnit(5, time.Second)        // 5000000000
+    cast.ToDurationInUnit("5", time.Millisecond) // 5000000
+
+The conversion is exact. The result must be an integral number of nanoseconds
+that fits in an `int64`. Fractional nanoseconds and values that overflow
+`int64` are rejected with an error rather than truncated. Non-finite floats
+(`NaN` and `Inf`) are rejected. Floats are interpreted by their exact binary
+value, not a rounded decimal approximation.
+
+If the input is already a `time.Duration`, it is returned unchanged — it is
+never scaled again.
+
+#### Registering Units for Named Numeric Types
+
+Named numeric types can carry their own unit meaning. Register a type with
+`RegisterDurationUnit` and the registered unit is used instead of the unit
+passed to the conversion function:
+
+    type Millis int64
+    cast.RegisterDurationUnit[Millis](time.Millisecond)
+
+    cast.ToDurationInUnit(Millis(5), time.Second) // 5000000 (5ms, not 5s)
+
+#### Unit Protocol
+
+The unit protocol is: the input value is a number, and the declared unit is a
+`time.Duration` representing the unit of that number. The result is
+`input * unit`, computed exactly. Text inputs are length-limited before
+parsing. The `Stringer` interface is never called to guess the input.
+
 ## Development
 
 The project uses [just](https://just.systems/) to run development tasks.
@@ -85,6 +123,18 @@ Run the test suite:
 
 ```shell
 just test
+```
+
+Run only the duration-related tests locally:
+
+```shell
+go test -run 'TestDuration' -v ./...
+```
+
+Run the explicit duration conversion tests locally:
+
+```shell
+go test -run 'TestDurationInUnit' -v ./...
 ```
 
 Run linters:
