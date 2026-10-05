@@ -102,3 +102,41 @@ just fmt
 ## License
 
 The project is licensed under the [MIT License](LICENSE).
+
+## Explicit duration conversion (unit protocol)
+
+`ToDuration` keeps its historical, best-effort behavior. When precision
+matters, use `ToDurationIn` / `ToDurationInE`, which never guess: the unit of
+a numeric input must be declared explicitly.
+
+```go
+d, err := cast.ToDurationInE(0.5, cast.Millisecond) // 500000 * time.Nanosecond
+d, err := cast.ToDurationInE(2, cast.Second)        // 2 * time.Second
+```
+
+The protocol:
+
+- The caller declares the unit of numeric inputs (`cast.Nanosecond`,
+  `cast.Microsecond`, `cast.Millisecond`, `cast.Second`, `cast.Minute`,
+  `cast.Hour`).
+- The result in nanoseconds is computed with exact arithmetic: it must be a
+  whole number of nanoseconds and fit in an `int64`, otherwise the
+  conversion fails. Floats are never truncated toward zero.
+- Floating point inputs are interpreted by their exact binary value: `0.5`
+  is exactly 1/2 (so `0.5 ms` is `500000 ns`), while `0.1` is not exactly
+  1/10 (so `0.1 ms` fails as a fractional nanosecond). Non-finite floats
+  (`NaN`, `±Inf`) are rejected.
+- A `time.Duration` input is returned unchanged; it is never rescaled by
+  the declared unit.
+- Named numeric types (e.g. `type Milliseconds int`) must register their
+  unit once with `cast.RegisterDurationUnit[Milliseconds](cast.Millisecond)`;
+  unregistered named types are rejected. A `fmt.Stringer` is never consulted
+  to guess the input.
+- Strings are length-limited (256 bytes) before parsing: first as a Go
+  duration string (`"1h30m"`), then as a plain number in the declared unit.
+
+Run only the duration conversion tests locally:
+
+```shell
+go test -run 'TestDuration|TestToDurationIn' .
+```
